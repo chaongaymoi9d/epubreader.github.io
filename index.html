@@ -3,34 +3,87 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>EPUB Reader — JSZip Fixed</title>
+<title>EPUB Reader — Highlights (Orange)</title>
 
-<!-- MUST: JSZip trước -->
+<!-- BẮT BUỘC: JSZip trước, epub.js sau -->
 <script src="https://cdn.jsdelivr.net/npm/jszip/dist/jszip.min.js"></script>
-<!-- epub.js sau -->
 <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.js"></script>
 
 <style>
-  :root{ --bg:#0b1020; --card:#0e162b; --muted:#9aa4b2; --text:#eaf0ff; --line:#1f2b4a; --accent:#38bdf8 }
+  :root{
+    --bg:#0b1020; --card:#0e162b; --muted:#9aa4b2; --text:#eaf0ff; --line:#1f2b4a;
+    --accent:#38bdf8; --orange:#f59e0b;
+  }
   *{box-sizing:border-box}
-  body{margin:0;background:linear-gradient(120deg,#0b1020,#101736);color:var(--text);
-       font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
-  header{position:sticky;top:0;z-index:10;background:rgba(14,22,43,.9);backdrop-filter:blur(6px);
-         border-bottom:1px solid var(--line);display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;padding:.6rem .8rem}
-  .btn{border:1px solid #2a3a63;background:#152043;color:var(--text);padding:.5rem .8rem;border-radius:.6rem;cursor:pointer}
-  .btn.primary{border-color:#3aa0ff;background:#16294b}
-  input[type="file"]{display:none}
-  .chip{padding:.35rem .6rem;border:1px solid #2a3a63;border-radius:999px;font-size:.9rem}
-  .grow{flex:1}
-  #wrap{display:grid;grid-template-columns:280px 1fr;gap:.8rem;padding:.8rem;min-height:calc(100vh - 64px)}
-  #toc{background:rgba(14,22,43,.6);border:1px solid var(--line);border-radius:.8rem;overflow:auto;padding:.6rem}
-  #toc h3{margin:.2rem .4rem .6rem;color:#a7b4c9;font-size:.95rem}
-  #toc a{display:block;color:#cfe3ff;text-decoration:none;padding:.35rem .45rem;border-radius:.4rem}
-  #toc a:hover{background:#1a2647}
-  #stage{background:rgba(14,22,43,.6);border:1px solid var(--line);border-radius:.8rem;position:relative;min-height:360px}
-  #area{width:100%;height:100%;overflow:auto}
-  #overlay{position:absolute;inset:0;display:none;place-items:center;background:rgba(16,23,54,.4);backdrop-filter:blur(2px)}
-  #status{font-size:.9rem;color:var(--muted)}
+  body{
+    margin:0; color:var(--text);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+    background:linear-gradient(120deg,#0b1020,#101736);
+  }
+  header{
+    position:sticky; top:0; z-index:10;
+    display:flex; gap:.6rem; align-items:center; flex-wrap:wrap;
+    padding:.6rem .8rem; background:rgba(14,22,43,.9); backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line)
+  }
+  .btn{
+    border:1px solid #2a3a63; background:#152043; color:var(--text);
+    padding:.5rem .8rem; border-radius:.6rem; cursor:pointer
+  }
+  .btn.primary{ border-color:#3aa0ff; background:#16294b }
+  .btn:disabled{ opacity:.5; cursor:not-allowed }
+  input[type="file"]{ display:none }
+  .chip{ padding:.35rem .6rem; border:1px solid #2a3a63; border-radius:999px; font-size:.9rem }
+  .grow{ flex:1 }
+  #status{ font-size:.9rem; color:var(--muted) }
+
+  /* Bố cục 3 cột: TOC | Reader | Highlights */
+  #wrap{
+    display:grid; gap:.8rem; padding:.8rem;
+    grid-template-columns:260px 1fr 320px;
+    min-height:calc(100vh - 64px)
+  }
+  /* TOC */
+  #toc{
+    background:rgba(14,22,43,.6); border:1px solid var(--line);
+    border-radius:.8rem; padding:.6rem; overflow:auto
+  }
+  #toc h3{ margin:.2rem .4rem .6rem; color:#a7b4c9; font-size:.95rem }
+  #toc a{ display:block; color:#cfe3ff; text-decoration:none; padding:.35rem .45rem; border-radius:.4rem }
+  #toc a:hover{ background:#1a2647 }
+
+  /* Stage (reader) */
+  #stage{
+    background:rgba(14,22,43,.6); border:1px solid var(--line); border-radius:.8rem;
+    position:relative; min-height:360px
+  }
+  #area{ width:100%; height:100%; overflow:auto } /* chiều cao set bằng JS để chắc chắn không = 0 */
+  #overlay{
+    position:absolute; inset:0; display:none; place-items:center;
+    background:rgba(16,23,54,.4); backdrop-filter:blur(2px)
+  }
+
+  /* Panel Highlights bên phải */
+  #notes{
+    background:rgba(14,22,43,.6); border:1px solid var(--line);
+    border-radius:.8rem; padding:.6rem; overflow:auto
+  }
+  #notes h3{ margin:.2rem .4rem .6rem; color:#a7b4c9; font-size:.95rem }
+  .note{
+    border:1px solid #2a3a63; border-radius:.6rem; padding:.5rem .6rem; margin:.45rem 0;
+    background:#121c36; cursor:pointer
+  }
+  .note small{ color:#9fb3d1; display:block; margin-top:.25rem }
+  .note:hover{ outline:1px solid #3b4f85 }
+
+  /* Màu highlight trong ebook iframe */
+  .epubjs-hl{ background:rgba(245,158,11,.45) !important; box-shadow:0 0 0 2px rgba(245,158,11,.25) inset }
+
+  @media (max-width:1100px){
+    #wrap{ grid-template-columns:1fr; }
+    #notes{ order:3; max-height:260px }
+    #toc{ max-height:220px }
+  }
 </style>
 </head>
 <body>
@@ -40,28 +93,40 @@
   <button id="prev" class="btn">⟵ Prev</button>
   <button id="next" class="btn">Next ⟶</button>
   <span class="chip">Cỡ chữ: <input id="font" type="range" min="80" max="160" value="100">%</span>
+
+  <!-- Nút highlight màu cam -->
+  <button id="addHL" class="btn" disabled>🖍️ Highlight (cam)</button>
+
   <span class="chip">Trang: <span id="loc">—</span></span>
   <div class="grow"></div>
-  <span id="status">Sẵn sàng. Chọn/kéo‑thả .epub</span>
+  <span id="status">Sẵn sàng. Chọn/kéo‑thả .epub, bôi đen rồi bấm “Highlight (cam)”.</span>
 </header>
 
 <div id="wrap">
   <nav id="toc"><h3>Mục lục</h3><div id="tocItems"></div></nav>
+
   <section id="stage">
     <div id="area" tabindex="0"></div>
     <div id="overlay" style="display:grid"><div>
       <div style="font-size:1.2rem;text-align:center">⏳ Đang mở EPUB…</div>
     </div></div>
   </section>
+
+  <aside id="notes">
+    <h3>Highlights (cam)</h3>
+    <div id="noteList"></div>
+  </aside>
 </div>
 
 <script>
 (() => {
   const $ = id => document.getElementById(id);
   const fileInput = $('file'), area = $('area'), stage = $('stage'), overlay = $('overlay');
-  const prevBtn = $('prev'), nextBtn = $('next'), fontRange = $('font');
-  const loc = $('loc'), status = $('status'), tocItems = $('tocItems');
+  const prevBtn = $('prev'), nextBtn = $('next'), fontRange = $('font'), addHLBtn = $('addHL');
+  const loc = $('loc'), status = $('status'), tocItems = $('tocItems'), noteList = $('noteList');
+
   let book = null, rendition = null;
+  let lastSelection = null; // { cfi, text }
 
   function setStatus(s){ status.textContent = s; }
   function clearTOC(){ tocItems.innerHTML = ""; }
@@ -85,14 +150,49 @@
     add(navs.toc || []);
   }
 
+  function renderNotes(){
+    noteList.innerHTML = '';
+    highlights.forEach((h, i) => {
+      const div = document.createElement('div');
+      div.className = 'note';
+      div.title = 'Nhấn để nhảy tới vị trí highlight';
+      div.innerHTML = `<div>${escapeHtml(h.text || '(trống)')}</div>
+                       <small>${h.chapter || ''}</small>`;
+      div.addEventListener('click', ()=> rendition.display(h.cfi));
+      noteList.appendChild(div);
+    });
+  }
+
+  function escapeHtml(s){
+    return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
   function bindRendition(){
     rendition.on('relocated', (e) => {
-      try {
-        const p = e.location.start.displayed;
-        loc.textContent = p.page + '/' + p.total;
-      } catch { loc.textContent = '—'; }
+      try{ const p = e.location.start.displayed; loc.textContent = p.page + '/' + p.total; }
+      catch{ loc.textContent = '—'; }
     });
-    rendition.themes.default({ 'body': { 'line-height': '1.6', 'color': '#eaf0ff' } });
+    // Khi user bôi đen văn bản bên trong iframe
+    rendition.on('selected', async (cfiRange, contents) => {
+      try{
+        const range = await rendition.getRange(cfiRange);
+        const txt = (range?.toString() || '').trim().replace(/\s+/g,' ').slice(0, 300);
+        lastSelection = { cfi: cfiRange, text: txt };
+        addHLBtn.disabled = false;
+      }catch{
+        lastSelection = { cfi: cfiRange, text: '' };
+        addHLBtn.disabled = false;
+      }finally{
+        // tránh giữ highlight native của trình duyệt
+        try{ contents.window.getSelection().removeAllRanges(); }catch{}
+      }
+    });
+
+    // Theme + font size
+    rendition.themes.default({
+      'body': { 'line-height': '1.6', 'color': '#eaf0ff' },
+      'a': { 'color': '#9ad1ff' }
+    });
     applyFont(); area.focus();
   }
   function applyFont(){ rendition?.themes.fontSize(fontRange.value + '%'); }
@@ -100,6 +200,8 @@
   function unloadBook(){
     rendition?.destroy(); book?.destroy();
     rendition = null; book = null; clearTOC(); loc.textContent = '—';
+    highlights.length = 0; renderNotes();
+    lastSelection = null; addHLBtn.disabled = true;
   }
 
   async function openArrayBuffer(buf){
@@ -115,12 +217,7 @@
       buildTOC(navs);
       setStatus('Đã tải xong.');
     }catch(err){
-      alert(
-        'Không thể mở file EPUB.\n\nNguyên nhân hay gặp:\n' +
-        '• File EPUB hỏng hoặc không theo chuẩn (ZIP lỗi, thiếu content.opf)\n' +
-        '• EPUB có DRM (Adobe/FairPlay) → epub.js không đọc được\n' +
-        '• Vùng hiển thị bị chặn/không có chiều cao\n\nChi tiết:\n' + (err?.message || err)
-      );
+      alert('Không thể mở file EPUB.\n\nNguyên nhân hay gặp:\n• File EPUB hỏng / thiếu content.opf\n• EPUB có DRM (Adobe, FairPlay)\n• Khung hiển thị bị 0px\n\nChi tiết:\n' + (err?.message || err));
       setStatus('Lỗi khi mở EPUB');
       console.error(err);
     }finally{
@@ -128,11 +225,43 @@
     }
   }
 
-  // Input & DnD
+  // === Highlight store (bộ nhớ tạm trong phiên) ===
+  const highlights = []; // { cfi, text, chapter? }
+
+  async function addHighlightFromSelection(){
+    if (!lastSelection || !rendition) return;
+    const { cfi, text } = lastSelection;
+
+    // Tạo highlight màu cam trong viewer
+    rendition.annotations.add('highlight', cfi, {}, (e)=>{}, 'hl-' + Date.now());
+
+    // Lấy tên chương (nếu có)
+    let chapter = '';
+    try{
+      const nav = await book.loaded.navigation;
+      chapter = nav && nav.toc ? (nav.toc.find(n => (n.href && cfi.includes(n.href)))?.label || '') : '';
+    }catch{}
+
+    highlights.push({ cfi, text, chapter });
+    renderNotes();
+
+    // reset state
+    lastSelection = null; addHLBtn.disabled = true;
+    setStatus('Đã thêm highlight.');
+  }
+
+  // === Events ===
   fileInput.addEventListener('change', async e=>{
     const f = e.target.files?.[0]; if (!f) return;
     const ab = await f.arrayBuffer(); openArrayBuffer(ab);
   });
+
+  prevBtn.addEventListener('click', ()=> rendition?.prev());
+  nextBtn.addEventListener('click', ()=> rendition?.next());
+  fontRange.addEventListener('input', applyFont);
+  addHLBtn.addEventListener('click', addHighlightFromSelection);
+
+  // Kéo‑thả
   ;['dragenter','dragover'].forEach(t=>area.addEventListener(t, e=>{e.preventDefault(); overlay.style.display='grid';}));
   ;['dragleave','dragend','drop'].forEach(t=>area.addEventListener(t, e=>{e.preventDefault(); overlay.style.display='none';}));
   area.addEventListener('drop', async e=>{
@@ -142,16 +271,14 @@
     } else setStatus('File không hợp lệ. Hãy thả .epub');
   });
 
-  // Controls
-  prevBtn.addEventListener('click', ()=> rendition?.prev());
-  nextBtn.addEventListener('click', ()=> rendition?.next());
-  fontRange.addEventListener('input', applyFont);
-
+  // Phím tắt
   window.addEventListener('keydown', e=>{
     if (!rendition) return;
     if (e.key === 'ArrowLeft') rendition.prev();
     if (e.key === 'ArrowRight') rendition.next();
+    if (e.key.toLowerCase()==='h' && !addHLBtn.disabled) addHighlightFromSelection();
   });
+
 })();
 </script>
 </body>
