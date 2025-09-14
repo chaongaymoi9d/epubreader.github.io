@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>EPUB Reader — Highlights (Orange)</title>
+<title>EPUB Reader — Highlights + Export/Import</title>
 
-<!-- BẮT BUỘC: JSZip trước, epub.js sau -->
+<!-- BẮT BUỘC: JSZip trước, rồi epub.js -->
 <script src="https://cdn.jsdelivr.net/npm/jszip/dist/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.js"></script>
 
@@ -15,74 +15,48 @@
     --accent:#38bdf8; --orange:#f59e0b;
   }
   *{box-sizing:border-box}
-  body{
-    margin:0; color:var(--text);
-    font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
-    background:linear-gradient(120deg,#0b1020,#101736);
-  }
+  body{margin:0; color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+       background:linear-gradient(120deg,#0b1020,#101736)}
   header{
-    position:sticky; top:0; z-index:10;
-    display:flex; gap:.6rem; align-items:center; flex-wrap:wrap;
-    padding:.6rem .8rem; background:rgba(14,22,43,.9); backdrop-filter:blur(6px);
-    border-bottom:1px solid var(--line)
+    position:sticky; top:0; z-index:10; display:flex; gap:.6rem; align-items:center; flex-wrap:wrap;
+    padding:.6rem .8rem; background:rgba(14,22,43,.9); backdrop-filter:blur(6px); border-bottom:1px solid var(--line)
   }
-  .btn{
-    border:1px solid #2a3a63; background:#152043; color:var(--text);
-    padding:.5rem .8rem; border-radius:.6rem; cursor:pointer
-  }
-  .btn.primary{ border-color:#3aa0ff; background:#16294b }
-  .btn:disabled{ opacity:.5; cursor:not-allowed }
-  input[type="file"]{ display:none }
-  .chip{ padding:.35rem .6rem; border:1px solid #2a3a63; border-radius:999px; font-size:.9rem }
-  .grow{ flex:1 }
-  #status{ font-size:.9rem; color:var(--muted) }
+  .btn{border:1px solid #2a3a63; background:#152043; color:var(--text);
+       padding:.5rem .8rem; border-radius:.6rem; cursor:pointer}
+  .btn.primary{border-color:#3aa0ff; background:#16294b}
+  .btn.warn{border-color:#f59e0b}
+  .btn:disabled{opacity:.5; cursor:not-allowed}
+  input[type="file"]{display:none}
+  .chip{padding:.35rem .6rem; border:1px solid #2a3a63; border-radius:999px; font-size:.9rem}
+  .grow{flex:1}
+  #status{font-size:.9rem; color:var(--muted)}
 
-  /* Bố cục 3 cột: TOC | Reader | Highlights */
-  #wrap{
-    display:grid; gap:.8rem; padding:.8rem;
-    grid-template-columns:260px 1fr 320px;
-    min-height:calc(100vh - 64px)
-  }
-  /* TOC */
-  #toc{
-    background:rgba(14,22,43,.6); border:1px solid var(--line);
-    border-radius:.8rem; padding:.6rem; overflow:auto
-  }
-  #toc h3{ margin:.2rem .4rem .6rem; color:#a7b4c9; font-size:.95rem }
-  #toc a{ display:block; color:#cfe3ff; text-decoration:none; padding:.35rem .45rem; border-radius:.4rem }
-  #toc a:hover{ background:#1a2647 }
+  /* layout: TOC | reader | highlights */
+  #wrap{display:grid; gap:.8rem; padding:.8rem; grid-template-columns:260px 1fr 340px; min-height:calc(100vh - 64px)}
+  #toc,#notes{background:rgba(14,22,43,.6); border:1px solid var(--line); border-radius:.8rem; padding:.6rem; overflow:auto}
+  #toc h3,#notes h3{margin:.2rem .4rem .6rem; color:#a7b4c9; font-size:.95rem}
+  #toc a{display:block; color:#cfe3ff; text-decoration:none; padding:.35rem .45rem; border-radius:.4rem}
+  #toc a:hover{background:#1a2647}
 
-  /* Stage (reader) */
-  #stage{
-    background:rgba(14,22,43,.6); border:1px solid var(--line); border-radius:.8rem;
-    position:relative; min-height:360px
-  }
-  #area{ width:100%; height:100%; overflow:auto } /* chiều cao set bằng JS để chắc chắn không = 0 */
-  #overlay{
-    position:absolute; inset:0; display:none; place-items:center;
-    background:rgba(16,23,54,.4); backdrop-filter:blur(2px)
-  }
+  #stage{background:rgba(14,22,43,.6); border:1px solid var(--line); border-radius:.8rem; position:relative; min-height:360px}
+  #area{width:100%; height:100%; overflow:auto}
+  #overlay{position:absolute; inset:0; display:none; place-items:center; background:rgba(16,23,54,.4); backdrop-filter:blur(2px)}
 
-  /* Panel Highlights bên phải */
-  #notes{
-    background:rgba(14,22,43,.6); border:1px solid var(--line);
-    border-radius:.8rem; padding:.6rem; overflow:auto
-  }
-  #notes h3{ margin:.2rem .4rem .6rem; color:#a7b4c9; font-size:.95rem }
-  .note{
-    border:1px solid #2a3a63; border-radius:.6rem; padding:.5rem .6rem; margin:.45rem 0;
-    background:#121c36; cursor:pointer
-  }
-  .note small{ color:#9fb3d1; display:block; margin-top:.25rem }
-  .note:hover{ outline:1px solid #3b4f85 }
+  /* highlight panel */
+  .note{border:1px solid #2a3a63; border-radius:.6rem; padding:.5rem .6rem; margin:.45rem 0; background:#121c36}
+  .note .row{display:flex; gap:.4rem; align-items:center}
+  .note .jump{flex:1; text-align:left; color:#eaf0ff; background:transparent; border:none; cursor:pointer}
+  .note small{color:#9fb3d1; display:block; margin-top:.25rem}
+  .note .del{border:1px solid #3b4f85; background:#1c284a; color:#ffd7a1; border-radius:.4rem; padding:.2rem .45rem; cursor:pointer}
+  .note .del:hover{border-color:#f59e0b}
 
-  /* Màu highlight trong ebook iframe */
-  .epubjs-hl{ background:rgba(245,158,11,.45) !important; box-shadow:0 0 0 2px rgba(245,158,11,.25) inset }
+  /* màu highlight trong nội dung */
+  .epubjs-hl{background:rgba(245,158,11,.45) !important; box-shadow:0 0 0 2px rgba(245,158,11,.25) inset}
 
   @media (max-width:1100px){
-    #wrap{ grid-template-columns:1fr; }
-    #notes{ order:3; max-height:260px }
-    #toc{ max-height:220px }
+    #wrap{grid-template-columns:1fr}
+    #toc{max-height:230px}
+    #notes{max-height:280px}
   }
 </style>
 </head>
@@ -90,16 +64,21 @@
 <header>
   <label class="btn primary" for="file">📖 Chọn EPUB</label>
   <input id="file" type="file" accept=".epub">
+
   <button id="prev" class="btn">⟵ Prev</button>
   <button id="next" class="btn">Next ⟶</button>
   <span class="chip">Cỡ chữ: <input id="font" type="range" min="80" max="160" value="100">%</span>
 
-  <!-- Nút highlight màu cam -->
-  <button id="addHL" class="btn" disabled>🖍️ Highlight (cam)</button>
+  <button id="addHL" class="btn warn" disabled>🖍️ Highlight (cam)</button>
 
   <span class="chip">Trang: <span id="loc">—</span></span>
   <div class="grow"></div>
-  <span id="status">Sẵn sàng. Chọn/kéo‑thả .epub, bôi đen rồi bấm “Highlight (cam)”.</span>
+
+  <!-- Export/Import -->
+  <button id="exportBtn" class="btn" disabled>⬇️ Xuất</button>
+  <label class="btn" for="importFile">⬆️ Nhập</label>
+  <input id="importFile" type="file" accept=".json">
+  <span id="status">Sẵn sàng. Chọn/kéo‑thả .epub</span>
 </header>
 
 <div id="wrap">
@@ -108,7 +87,7 @@
   <section id="stage">
     <div id="area" tabindex="0"></div>
     <div id="overlay" style="display:grid"><div>
-      <div style="font-size:1.2rem;text-align:center">⏳ Đang mở EPUB…</div>
+      <div style="font-size:1.2rem; text-align:center">⏳ Đang mở EPUB…</div>
     </div></div>
   </section>
 
@@ -124,55 +103,107 @@
   const fileInput = $('file'), area = $('area'), stage = $('stage'), overlay = $('overlay');
   const prevBtn = $('prev'), nextBtn = $('next'), fontRange = $('font'), addHLBtn = $('addHL');
   const loc = $('loc'), status = $('status'), tocItems = $('tocItems'), noteList = $('noteList');
+  const exportBtn = $('exportBtn'), importFile = $('importFile');
 
   let book = null, rendition = null;
-  let lastSelection = null; // { cfi, text }
+  let lastSelection = null;       // { cfi, text }
+  let currentEpubName = '';       // "Thanh cong.epub"
+  let currentEpubBase = '';       // "Thanh cong"
+  let idSeq = 1;
+
+  // store highlights: { id, cfi, text, chapter }
+  const highlights = [];
 
   function setStatus(s){ status.textContent = s; }
   function clearTOC(){ tocItems.innerHTML = ""; }
+
   function ensureHeight(){
-    const h = stage.clientHeight || 400;
+    const h = stage.clientHeight || 420;
     area.style.height = h + 'px';
   }
   new ResizeObserver(ensureHeight).observe(stage);
   ensureHeight();
 
+  // ===== TOC: click để nhảy đến vị trí =====
   function buildTOC(navs){
     clearTOC();
     const add = items => items.forEach(it=>{
       const a = document.createElement('a');
       a.textContent = (it.label||'').trim() || '(no title)';
       a.href = '#';
-      a.addEventListener('click', e=>{ e.preventDefault(); rendition.display(it.href); });
+      a.addEventListener('click', e=>{
+        e.preventDefault();
+        // epub.js chấp nhận href (link) hoặc CFI. Với toc.href là link spine, dùng trực tiếp:
+        rendition.display(it.href);
+      });
       tocItems.appendChild(a);
       if (it.subitems?.length) add(it.subitems);
     });
     add(navs.toc || []);
   }
 
-  function renderNotes(){
-    noteList.innerHTML = '';
-    highlights.forEach((h, i) => {
-      const div = document.createElement('div');
-      div.className = 'note';
-      div.title = 'Nhấn để nhảy tới vị trí highlight';
-      div.innerHTML = `<div>${escapeHtml(h.text || '(trống)')}</div>
-                       <small>${h.chapter || ''}</small>`;
-      div.addEventListener('click', ()=> rendition.display(h.cfi));
-      noteList.appendChild(div);
-    });
-  }
-
   function escapeHtml(s){
     return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
+  // ===== Panel highlights render =====
+  function renderNotes(){
+    noteList.innerHTML = '';
+    if (!highlights.length){
+      noteList.innerHTML = '<div style="opacity:.7">Chưa có highlight nào.</div>';
+      return;
+    }
+    for (const h of highlights){
+      const item = document.createElement('div');
+      item.className = 'note';
+      item.innerHTML = `
+        <div class="row">
+          <button class="jump" title="Nhảy tới vị trí">${escapeHtml(h.text || '(trống)')}</button>
+          <button class="del" title="Xoá highlight">🗑️</button>
+        </div>
+        <small>${escapeHtml(h.chapter || '')}</small>
+      `;
+      // jump
+      item.querySelector('.jump').addEventListener('click', ()=> rendition.display(h.cfi));
+      // delete
+      item.querySelector('.del').addEventListener('click', ()=>{
+        removeHighlight(h.id);
+      });
+      noteList.appendChild(item);
+    }
+  }
+
+  // ===== Thêm/Xoá highlight trong viewer + list =====
+  function addHighlightObj(cfi, text, chapter){
+    const id = 'hl-' + (idSeq++);
+    // thêm vào viewer
+    rendition.annotations.add('highlight', cfi, {}, null, id);
+    // lưu vào store
+    highlights.push({ id, cfi, text, chapter });
+    renderNotes();
+    setStatus('Đã thêm highlight.');
+  }
+
+  function removeHighlight(id){
+    const idx = highlights.findIndex(h => h.id === id);
+    if (idx < 0) return;
+    const h = highlights[idx];
+    // remove từ viewer
+    try{ rendition.annotations.remove(h.cfi, 'highlight', h.id); }catch(e){}
+    // remove khỏi store
+    highlights.splice(idx,1);
+    renderNotes();
+    setStatus('Đã xoá highlight.');
+  }
+
+  // ===== Binding rendition events =====
   function bindRendition(){
     rendition.on('relocated', (e) => {
       try{ const p = e.location.start.displayed; loc.textContent = p.page + '/' + p.total; }
       catch{ loc.textContent = '—'; }
     });
-    // Khi user bôi đen văn bản bên trong iframe
+
+    // user select text trong iframe
     rendition.on('selected', async (cfiRange, contents) => {
       try{
         const range = await rendition.getRange(cfiRange);
@@ -183,41 +214,49 @@
         lastSelection = { cfi: cfiRange, text: '' };
         addHLBtn.disabled = false;
       }finally{
-        // tránh giữ highlight native của trình duyệt
         try{ contents.window.getSelection().removeAllRanges(); }catch{}
       }
     });
 
-    // Theme + font size
     rendition.themes.default({
       'body': { 'line-height': '1.6', 'color': '#eaf0ff' },
       'a': { 'color': '#9ad1ff' }
     });
     applyFont(); area.focus();
   }
+
   function applyFont(){ rendition?.themes.fontSize(fontRange.value + '%'); }
 
   function unloadBook(){
     rendition?.destroy(); book?.destroy();
     rendition = null; book = null; clearTOC(); loc.textContent = '—';
     highlights.length = 0; renderNotes();
-    lastSelection = null; addHLBtn.disabled = true;
+    lastSelection = null; addHLBtn.disabled = true; exportBtn.disabled = true;
+    currentEpubName = currentEpubBase = '';
   }
 
-  async function openArrayBuffer(buf){
+  // ===== mở EPUB từ ArrayBuffer =====
+  async function openArrayBuffer(buf, fileName){
     unloadBook();
     overlay.style.display='grid'; setStatus('Đang mở EPUB…');
+
     try{
       if (!window.JSZip) throw new Error('JSZip lib not loaded');
+      currentEpubName = fileName || 'book.epub';
+      currentEpubBase = currentEpubName.replace(/\.[Ee][Pp][Uu][Bb]$/, '');
+      exportBtn.disabled = false;
+
       book = ePub(buf);
       rendition = book.renderTo(area, { width: area.clientWidth, height: area.clientHeight, flow:'paginated' });
       await rendition.display();
+
       bindRendition();
       const navs = await book.loaded.navigation;
       buildTOC(navs);
-      setStatus('Đã tải xong.');
+
+      setStatus('Đã tải xong: ' + currentEpubName);
     }catch(err){
-      alert('Không thể mở file EPUB.\n\nNguyên nhân hay gặp:\n• File EPUB hỏng / thiếu content.opf\n• EPUB có DRM (Adobe, FairPlay)\n• Khung hiển thị bị 0px\n\nChi tiết:\n' + (err?.message || err));
+      alert('Không thể mở file EPUB.\n\nChi tiết:\n' + (err?.message || err));
       setStatus('Lỗi khi mở EPUB');
       console.error(err);
     }finally{
@@ -225,60 +264,109 @@
     }
   }
 
-  // === Highlight store (bộ nhớ tạm trong phiên) ===
-  const highlights = []; // { cfi, text, chapter? }
-
-  async function addHighlightFromSelection(){
-    if (!lastSelection || !rendition) return;
-    const { cfi, text } = lastSelection;
-
-    // Tạo highlight màu cam trong viewer
-    rendition.annotations.add('highlight', cfi, {}, (e)=>{}, 'hl-' + Date.now());
-
-    // Lấy tên chương (nếu có)
-    let chapter = '';
-    try{
-      const nav = await book.loaded.navigation;
-      chapter = nav && nav.toc ? (nav.toc.find(n => (n.href && cfi.includes(n.href)))?.label || '') : '';
-    }catch{}
-
-    highlights.push({ cfi, text, chapter });
-    renderNotes();
-
-    // reset state
-    lastSelection = null; addHLBtn.disabled = true;
-    setStatus('Đã thêm highlight.');
+  // ====== Export / Import ======
+  function exportHighlights(){
+    if (!currentEpubBase){
+      alert('Hãy mở EPUB trước khi xuất dữ liệu.'); return;
+    }
+    const data = {
+      epub_name: currentEpubName,
+      epub_base: currentEpubBase,
+      created_at: new Date().toISOString(),
+      highlights: highlights.map(h => ({ id:h.id, cfi:h.cfi, text:h.text, chapter:h.chapter }))
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = currentEpubBase + '.json';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 0);
   }
 
-  // === Events ===
+  async function importHighlightsFile(file){
+    if (!currentEpubBase){
+      alert('Hãy mở EPUB (Chọn file .epub) trước khi Nhập dữ liệu.'); return;
+    }
+    try{
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      // Tên phải khớp base
+      const base = (data?.epub_base || '').trim();
+      if (!base || base !== currentEpubBase){
+        alert('Chọn lại file khác: tên dữ liệu không trùng với EPUB hiện tại.\n\nEPUB hiện tại: ' + currentEpubBase + '\nFile dữ liệu: ' + (base || '(không xác định)'));
+        return;
+      }
+
+      // nạp highlights
+      highlights.length = 0;
+      idSeq = 1;
+      for (const h of (data.highlights || [])){
+        const id = h.id || ('hl-' + (idSeq++));
+        try{ rendition.annotations.add('highlight', h.cfi, {}, null, id); }catch(e){}
+        highlights.push({ id, cfi:h.cfi, text:h.text, chapter:h.chapter });
+      }
+      renderNotes();
+      setStatus('Nhập dữ liệu: Thành công');
+      alert('Thành công');
+    }catch(err){
+      console.error(err);
+      alert('Không đọc được file JSON.\n' + (err?.message || err));
+    }
+  }
+
+  // ====== Events ======
   fileInput.addEventListener('change', async e=>{
     const f = e.target.files?.[0]; if (!f) return;
-    const ab = await f.arrayBuffer(); openArrayBuffer(ab);
+    const ab = await f.arrayBuffer(); openArrayBuffer(ab, f.name);
   });
 
   prevBtn.addEventListener('click', ()=> rendition?.prev());
   nextBtn.addEventListener('click', ()=> rendition?.next());
   fontRange.addEventListener('input', applyFont);
-  addHLBtn.addEventListener('click', addHighlightFromSelection);
 
-  // Kéo‑thả
+  addHLBtn.addEventListener('click', ()=>{
+    if (!lastSelection) return;
+    // cố gắng đoán chapter theo vị trí hiện tại (đơn giản)
+    let chapter = '';
+    try{
+      const href = rendition.currentLocation()?.start?.href || '';
+      const nav = book && book.navigation ? book.navigation.toc : null;
+      if (nav){
+        const found = nav.find(n => href.endsWith(n.href));
+        if (found) chapter = found.label || '';
+      }
+    }catch{}
+    addHighlightObj(lastSelection.cfi, lastSelection.text, chapter);
+    lastSelection = null;
+    addHLBtn.disabled = true;
+  });
+
+  exportBtn.addEventListener('click', exportHighlights);
+  importFile.addEventListener('change', e=>{
+    const f = e.target.files?.[0]; if (!f) return;
+    importHighlightsFile(f);
+    importFile.value = ''; // reset để lần sau chọn lại vẫn trigger
+  });
+
+  // DnD EPUB
   ;['dragenter','dragover'].forEach(t=>area.addEventListener(t, e=>{e.preventDefault(); overlay.style.display='grid';}));
   ;['dragleave','dragend','drop'].forEach(t=>area.addEventListener(t, e=>{e.preventDefault(); overlay.style.display='none';}));
   area.addEventListener('drop', async e=>{
     const f = e.dataTransfer.files?.[0];
     if (f && f.name.toLowerCase().endsWith('.epub')) {
-      const ab = await f.arrayBuffer(); openArrayBuffer(ab);
+      const ab = await f.arrayBuffer(); openArrayBuffer(ab, f.name);
     } else setStatus('File không hợp lệ. Hãy thả .epub');
   });
 
-  // Phím tắt
+  // phím tắt
   window.addEventListener('keydown', e=>{
     if (!rendition) return;
     if (e.key === 'ArrowLeft') rendition.prev();
     if (e.key === 'ArrowRight') rendition.next();
-    if (e.key.toLowerCase()==='h' && !addHLBtn.disabled) addHighlightFromSelection();
+    if (e.key.toLowerCase()==='h' && !addHLBtn.disabled) addHLBtn.click();
   });
-
 })();
 </script>
 </body>
