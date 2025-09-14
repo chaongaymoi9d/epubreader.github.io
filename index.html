@@ -3,8 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>EPUB Reader — Safe Render</title>
+<title>EPUB Reader — JSZip Fixed</title>
+
+<!-- MUST: JSZip trước -->
+<script src="https://cdn.jsdelivr.net/npm/jszip/dist/jszip.min.js"></script>
+<!-- epub.js sau -->
 <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.js"></script>
+
 <style>
   :root{ --bg:#0b1020; --card:#0e162b; --muted:#9aa4b2; --text:#eaf0ff; --line:#1f2b4a; --accent:#38bdf8 }
   *{box-sizing:border-box}
@@ -22,13 +27,10 @@
   #toc h3{margin:.2rem .4rem .6rem;color:#a7b4c9;font-size:.95rem}
   #toc a{display:block;color:#cfe3ff;text-decoration:none;padding:.35rem .45rem;border-radius:.4rem}
   #toc a:hover{background:#1a2647}
-  #stage{background:rgba(14,22,43,.6);border:1px solid var(--line);border-radius:.8rem;position:relative;min-height:320px}
+  #stage{background:rgba(14,22,43,.6);border:1px solid var(--line);border-radius:.8rem;position:relative;min-height:360px}
   #area{width:100%;height:100%;overflow:auto}
   #overlay{position:absolute;inset:0;display:none;place-items:center;background:rgba(16,23,54,.4);backdrop-filter:blur(2px)}
   #status{font-size:.9rem;color:var(--muted)}
-  #log{font-size:.8rem;color:#9ad1ff}
-  .range{accent-color:var(--accent)}
-  @media (max-width:900px){ #wrap{grid-template-columns:1fr} #toc{height:240px} }
 </style>
 </head>
 <body>
@@ -37,11 +39,10 @@
   <input id="file" type="file" accept=".epub">
   <button id="prev" class="btn">⟵ Prev</button>
   <button id="next" class="btn">Next ⟶</button>
-  <span class="chip">Cỡ chữ: <input id="font" type="range" min="80" max="160" value="100" class="range">%</span>
+  <span class="chip">Cỡ chữ: <input id="font" type="range" min="80" max="160" value="100">%</span>
   <span class="chip">Trang: <span id="loc">—</span></span>
   <div class="grow"></div>
-  <span id="status">Sẵn sàng. Chọn/ kéo‑thả .epub</span>
-  <span id="log"></span>
+  <span id="status">Sẵn sàng. Chọn/kéo‑thả .epub</span>
 </header>
 
 <div id="wrap">
@@ -56,27 +57,20 @@
 
 <script>
 (() => {
-  const q = id => document.getElementById(id);
-  const fileInput = q('file'), area = q('area'), stage = q('stage');
-  const prevBtn = q('prev'), nextBtn = q('next'), fontRange = q('font');
-  const loc = q('loc'), status = q('status'), tocItems = q('tocItems'), overlay = q('overlay'), logEl = q('log');
-  let book = null, rendition = null, resizeObs = null;
+  const $ = id => document.getElementById(id);
+  const fileInput = $('file'), area = $('area'), stage = $('stage'), overlay = $('overlay');
+  const prevBtn = $('prev'), nextBtn = $('next'), fontRange = $('font');
+  const loc = $('loc'), status = $('status'), tocItems = $('tocItems');
+  let book = null, rendition = null;
 
   function setStatus(s){ status.textContent = s; }
-  function log(s){ logEl.textContent = s; console.log('[EPUB]', s); }
   function clearTOC(){ tocItems.innerHTML = ""; }
-
-  // Đảm bảo #area luôn có chiều cao thật (tránh 100% của container chưa đo được)
-  function attachResizer(){
-    if (resizeObs) return;
-    resizeObs = new ResizeObserver(() => {
-      const h = stage.clientHeight;
-      area.style.height = (h>0? h : 400) + 'px';
-    });
-    resizeObs.observe(stage);
-    // đặt ngay lần đầu
-    area.style.height = Math.max(stage.clientHeight, 400) + 'px';
+  function ensureHeight(){
+    const h = stage.clientHeight || 400;
+    area.style.height = h + 'px';
   }
+  new ResizeObserver(ensureHeight).observe(stage);
+  ensureHeight();
 
   function buildTOC(navs){
     clearTOC();
@@ -98,92 +92,66 @@
         loc.textContent = p.page + '/' + p.total;
       } catch { loc.textContent = '—'; }
     });
-    rendition.themes.default({
-      'body': { 'line-height': '1.6', 'color': '#eaf0ff' },
-      'a': { 'color': '#9ad1ff' }
-    });
-    applyFont();
-    area.focus();
+    rendition.themes.default({ 'body': { 'line-height': '1.6', 'color': '#eaf0ff' } });
+    applyFont(); area.focus();
   }
-
-  function applyFont(){ if (rendition) rendition.themes.fontSize(fontRange.value + '%'); }
+  function applyFont(){ rendition?.themes.fontSize(fontRange.value + '%'); }
 
   function unloadBook(){
-    if (rendition) { rendition.destroy(); rendition = null; }
-    if (book) { book.destroy(); book = null; }
-    clearTOC(); loc.textContent = '—';
+    rendition?.destroy(); book?.destroy();
+    rendition = null; book = null; clearTOC(); loc.textContent = '—';
   }
 
   async function openArrayBuffer(buf){
     unloadBook();
-    setStatus('Đang mở EPUB…'); overlay.style.display='grid'; log('start open');
-    attachResizer();
-
-    let timeoutId = setTimeout(()=>{
-      log('timeout> rendering lâu bất thường. Có thể chiều cao vùng đọc = 0 hoặc EPUB lỗi/DRM.');
-      setStatus('Chậm bất thường… kiểm tra file hoặc thử tải lại.');
-      overlay.style.display='none';
-    }, 10000);
-
+    overlay.style.display='grid'; setStatus('Đang mở EPUB…');
     try{
+      if (!window.JSZip) throw new Error('JSZip lib not loaded');
       book = ePub(buf);
-      // DEBUG: nếu EPUB có DRM (encryption.xml), epub.js không đọc được
-      book.ready.then(()=>log('book.ready'));
       rendition = book.renderTo(area, { width: area.clientWidth, height: area.clientHeight, flow:'paginated' });
-      await rendition.display(); // có thể treo nếu height=0 → đã có resizer
+      await rendition.display();
       bindRendition();
       const navs = await book.loaded.navigation;
       buildTOC(navs);
-      setStatus('Đã tải xong.'); log('display done');
+      setStatus('Đã tải xong.');
     }catch(err){
-      console.error(err);
-      setStatus('Lỗi khi mở EPUB');
       alert(
         'Không thể mở file EPUB.\n\nNguyên nhân hay gặp:\n' +
         '• File EPUB hỏng hoặc không theo chuẩn (ZIP lỗi, thiếu content.opf)\n' +
         '• EPUB có DRM (Adobe/FairPlay) → epub.js không đọc được\n' +
         '• Vùng hiển thị bị chặn/không có chiều cao\n\nChi tiết:\n' + (err?.message || err)
       );
+      setStatus('Lỗi khi mở EPUB');
+      console.error(err);
     }finally{
-      clearTimeout(timeoutId);
       overlay.style.display='none';
     }
   }
 
-  // Events
+  // Input & DnD
   fileInput.addEventListener('change', async e=>{
-    const f = e.target.files?.[0];
-    if (!f) return;
-    const ab = await f.arrayBuffer();
-    openArrayBuffer(ab);
+    const f = e.target.files?.[0]; if (!f) return;
+    const ab = await f.arrayBuffer(); openArrayBuffer(ab);
   });
-
-  prevBtn.addEventListener('click', ()=> rendition?.prev());
-  nextBtn.addEventListener('click', ()=> rendition?.next());
-  fontRange.addEventListener('input', applyFont);
-
-  // Kéo‑thả trực tiếp lên vùng đọc
   ;['dragenter','dragover'].forEach(t=>area.addEventListener(t, e=>{e.preventDefault(); overlay.style.display='grid';}));
   ;['dragleave','dragend','drop'].forEach(t=>area.addEventListener(t, e=>{e.preventDefault(); overlay.style.display='none';}));
   area.addEventListener('drop', async e=>{
     const f = e.dataTransfer.files?.[0];
     if (f && f.name.toLowerCase().endsWith('.epub')) {
-      const ab = await f.arrayBuffer();
-      openArrayBuffer(ab);
-    } else {
-      setStatus('File không hợp lệ. Hãy thả .epub'); log('drop not epub');
-    }
+      const ab = await f.arrayBuffer(); openArrayBuffer(ab);
+    } else setStatus('File không hợp lệ. Hãy thả .epub');
   });
 
-  // Phím tắt
+  // Controls
+  prevBtn.addEventListener('click', ()=> rendition?.prev());
+  nextBtn.addEventListener('click', ()=> rendition?.next());
+  fontRange.addEventListener('input', applyFont);
+
   window.addEventListener('keydown', e=>{
     if (!rendition) return;
     if (e.key === 'ArrowLeft') rendition.prev();
     if (e.key === 'ArrowRight') rendition.next();
   });
-
-  // Nếu iframe/Sites làm chiều cao dynamic → resizer sẽ xử lý
-  attachResizer();
 })();
 </script>
 </body>
